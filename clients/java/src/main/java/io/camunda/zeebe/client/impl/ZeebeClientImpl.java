@@ -71,8 +71,6 @@ import io.netty.handler.ssl.SslContext;
 import java.io.Closeable;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
@@ -126,16 +124,9 @@ public final class ZeebeClientImpl implements ZeebeClient {
   }
 
   public static ManagedChannel buildChannel(final ZeebeClientConfiguration config) {
-    final URI address;
-
-    try {
-      address = new URI(config.getGatewayAddress());
-    } catch (final URISyntaxException e) {
-      throw new RuntimeException("Failed to parse broker contact point", e);
-    }
 
     final NettyChannelBuilder channelBuilder =
-        NettyChannelBuilder.forTarget(address.toString());
+        NettyChannelBuilder.forTarget(config.getGatewayAddress());
 
     configureConnectionSecurity(config, channelBuilder);
     channelBuilder.keepAliveTime(config.getKeepAlive().toMillis(), TimeUnit.MILLISECONDS);

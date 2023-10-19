@@ -732,23 +732,31 @@ public final class ZeebeClientTest extends ClientTest {
   @Test
   public void shouldNotUseHighPriorityNameResolverProviderByDefault() {
 
+    // given
     final HighPriorityNameResolverProvider highPriorityNameResolverProvider = new HighPriorityNameResolverProvider();
 
     NameResolverRegistry.getDefaultRegistry().register(highPriorityNameResolverProvider);
 
-    final String defaultScheme = NameResolverRegistry.getDefaultRegistry().asFactory()
-        .getDefaultScheme();
-
     // verify
-    assertThat(defaultScheme).isEqualTo("demo");
+    assertThat(NameResolverRegistry.getDefaultRegistry().asFactory()
+        .getDefaultScheme()).isEqualTo("demo");
 
-    // verify
-    Assertions.assertDoesNotThrow(() -> {
-      new ZeebeClientBuilderImpl().gatewayAddress("dns:///0.0.0.0:26500").build();
-    });
+    // verify the configured name resolver provider is used
+    client = new ZeebeClientBuilderImpl().gatewayAddress("dns:///0.0.0.0:26500").build();
+    Assertions.assertEquals("dns:///0.0.0.0:26500", client.getConfiguration().getGatewayAddress());
 
-    // verify
+    // verify the configured name resolver provider is used
     Assertions.assertThrows(ClientException.class,
-        () -> new ZeebeClientBuilderImpl().gatewayAddress("demo:///0.0.0.0:26500").build());
+        () -> new ZeebeClientBuilderImpl().gatewayAddress("demo://0.0.0.0:26500").build());
+
+    // verify the the high priority name resolver provider is used
+    Assertions.assertThrows(ClientException.class,
+        () -> new ZeebeClientBuilderImpl().gatewayAddress("0.0.0.0:26500").build());
+
+    // deregister and verify
+    NameResolverRegistry.getDefaultRegistry().deregister(highPriorityNameResolverProvider);
+    client = new ZeebeClientBuilderImpl().gatewayAddress("0.0.0.0:26500").build();
+    Assertions.assertEquals("0.0.0.0:26500", client.getConfiguration().getGatewayAddress());
+
   }
 }
