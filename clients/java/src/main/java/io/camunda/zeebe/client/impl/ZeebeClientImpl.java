@@ -80,6 +80,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public final class ZeebeClientImpl implements ZeebeClient {
+
   private final ZeebeClientConfiguration config;
   private final JsonMapper jsonMapper;
   private final GatewayStub asyncStub;
@@ -128,13 +129,13 @@ public final class ZeebeClientImpl implements ZeebeClient {
     final URI address;
 
     try {
-      address = new URI("zb://" + config.getGatewayAddress());
+      address = new URI(config.getGatewayAddress());
     } catch (final URISyntaxException e) {
       throw new RuntimeException("Failed to parse broker contact point", e);
     }
 
     final NettyChannelBuilder channelBuilder =
-        NettyChannelBuilder.forAddress(address.getHost(), address.getPort());
+        NettyChannelBuilder.forTarget(address.toString());
 
     configureConnectionSecurity(config, channelBuilder);
     channelBuilder.keepAliveTime(config.getKeepAlive().toMillis(), TimeUnit.MILLISECONDS);
@@ -187,7 +188,7 @@ public final class ZeebeClientImpl implements ZeebeClient {
     final GatewayStub gatewayStub = GatewayGrpc.newStub(channel).withCallCredentials(credentials);
     if (!config.getInterceptors().isEmpty()) {
       return gatewayStub.withInterceptors(
-          config.getInterceptors().toArray(new ClientInterceptor[] {}));
+          config.getInterceptors().toArray(new ClientInterceptor[]{}));
     }
     return gatewayStub;
   }

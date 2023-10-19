@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+import io.camunda.zeebe.client.api.command.ClientException;
 import io.camunda.zeebe.client.api.command.CommandWithTenantStep;
 import io.camunda.zeebe.client.api.worker.JobWorker;
 import io.camunda.zeebe.client.impl.NoopCredentialsProvider;
@@ -45,6 +46,7 @@ import io.camunda.zeebe.client.impl.oauth.OAuthCredentialsProvider;
 import io.camunda.zeebe.client.impl.util.Environment;
 import io.camunda.zeebe.client.impl.util.EnvironmentRule;
 import io.camunda.zeebe.client.util.ClientTest;
+import io.grpc.NameResolverRegistry;
 import java.io.FileNotFoundException;
 import java.time.Duration;
 import java.util.Arrays;
@@ -56,6 +58,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
 import org.junit.rules.ExpectedException;
 
 public final class ZeebeClientTest extends ClientTest {
@@ -724,5 +727,28 @@ public final class ZeebeClientTest extends ClientTest {
         .describedAs(
             "This method has no effect on the cloud client builder while under development")
         .isEqualTo(builder);
+  }
+
+  @Test
+  public void shouldNotUseHighPriorityNameResolverProviderByDefault() {
+
+    final HighPriorityNameResolverProvider highPriorityNameResolverProvider = new HighPriorityNameResolverProvider();
+
+    NameResolverRegistry.getDefaultRegistry().register(highPriorityNameResolverProvider);
+
+    final String defaultScheme = NameResolverRegistry.getDefaultRegistry().asFactory()
+        .getDefaultScheme();
+
+    // verify
+    assertThat(defaultScheme).isEqualTo("demo");
+
+    // verify
+    Assertions.assertDoesNotThrow(() -> {
+      new ZeebeClientBuilderImpl().gatewayAddress("dns:///0.0.0.0:26500").build();
+    });
+
+    // verify
+    Assertions.assertThrows(ClientException.class,
+        () -> new ZeebeClientBuilderImpl().gatewayAddress("demo:///0.0.0.0:26500").build());
   }
 }
