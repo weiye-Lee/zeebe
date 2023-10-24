@@ -179,7 +179,7 @@ public final class ZeebeClientImpl implements ZeebeClient {
     final GatewayStub gatewayStub = GatewayGrpc.newStub(channel).withCallCredentials(credentials);
     if (!config.getInterceptors().isEmpty()) {
       return gatewayStub.withInterceptors(
-          config.getInterceptors().toArray(new ClientInterceptor[]{}));
+          config.getInterceptors().toArray(new ClientInterceptor[] {}));
     }
     return gatewayStub;
   }

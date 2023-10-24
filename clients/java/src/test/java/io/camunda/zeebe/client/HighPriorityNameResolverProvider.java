@@ -26,7 +26,6 @@ import java.net.URI;
  * @version 1.0.0
  * @since 2023/10/19
  */
-
 public class HighPriorityNameResolverProvider extends NameResolverProvider {
 
   @Override
