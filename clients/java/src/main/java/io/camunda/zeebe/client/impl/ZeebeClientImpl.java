@@ -71,6 +71,8 @@ import io.netty.handler.ssl.SslContext;
 import java.io.Closeable;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
@@ -124,15 +126,30 @@ public final class ZeebeClientImpl implements ZeebeClient {
   }
 
   public static ManagedChannel buildChannel(final ZeebeClientConfiguration config) {
+    final NettyChannelBuilder channelBuilder;
+    if (config.getGatewayTarget() == null) {
+      final URI address;
 
-    final NettyChannelBuilder channelBuilder =
-        NettyChannelBuilder.forTarget(config.getGatewayAddress());
+      try {
+        address = new URI("zb://" + config.getGatewayAddress());
+      } catch (final URISyntaxException e) {
+        throw new RuntimeException("Failed to parse broker contact point", e);
+      }
+      channelBuilder = NettyChannelBuilder.forAddress(address.getHost(), address.getPort());
+    } else {
+      channelBuilder = NettyChannelBuilder.forTarget(config.getGatewayTarget());
+    }
 
+    return configureNettyChannel(config, channelBuilder).build();
+  }
+
+  private static NettyChannelBuilder configureNettyChannel(ZeebeClientConfiguration config,
+      NettyChannelBuilder channelBuilder) {
     configureConnectionSecurity(config, channelBuilder);
     channelBuilder.keepAliveTime(config.getKeepAlive().toMillis(), TimeUnit.MILLISECONDS);
     channelBuilder.userAgent("zeebe-client-java/" + VersionUtil.getVersion());
     channelBuilder.maxInboundMessageSize(config.getMaxMessageSize());
-    return channelBuilder.build();
+    return channelBuilder;
   }
 
   private static CallCredentials buildCallCredentials(final ZeebeClientConfiguration config) {

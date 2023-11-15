@@ -33,8 +33,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import io.camunda.zeebe.client.api.command.ClientException;
 import io.camunda.zeebe.client.api.command.CommandWithTenantStep;
@@ -42,6 +46,7 @@ import io.camunda.zeebe.client.api.worker.JobWorker;
 import io.camunda.zeebe.client.impl.NoopCredentialsProvider;
 import io.camunda.zeebe.client.impl.ZeebeClientBuilderImpl;
 import io.camunda.zeebe.client.impl.ZeebeClientCloudBuilderImpl;
+import io.camunda.zeebe.client.impl.ZeebeClientImpl;
 import io.camunda.zeebe.client.impl.oauth.OAuthCredentialsProvider;
 import io.camunda.zeebe.client.impl.util.Environment;
 import io.camunda.zeebe.client.impl.util.EnvironmentRule;
@@ -49,6 +54,7 @@ import io.camunda.zeebe.client.util.ClientTest;
 import io.grpc.NameResolverRegistry;
 import java.io.FileNotFoundException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -59,6 +65,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.rules.ExpectedException;
 
 public final class ZeebeClientTest extends ClientTest {
@@ -730,7 +737,95 @@ public final class ZeebeClientTest extends ClientTest {
   }
 
   @Test
-  public void shouldNotUseHighPriorityNameResolverProviderByDefault() {
+  @DisplayName("should throw when gatewayTarget is invalid")
+  public void shouldThrowWhenGatewayTargetIsInvalid() {
+    // given
+    final ZeebeClientBuilderImpl builder = new ZeebeClientBuilderImpl();
+
+    // when
+    Assertions.assertThrows(RuntimeException.class, () -> builder.gatewayTarget("0.0.0.0:26500"));
+  }
+
+  @Test
+  @DisplayName("should use gatewayAddress when gatewayAddress is valid ip:port")
+  public void shouldUseGatewayAddressWhenGatewayAddressIsValidIpPort() {
+    // given
+    final ZeebeClientBuilderImpl builder = new ZeebeClientBuilderImpl();
+    final Properties properties = new Properties();
+    properties.putIfAbsent(ClientProperties.GATEWAY_ADDRESS, "0.0.0.0:26500");
+    builder.withProperties(properties);
+
+    // when
+    builder.build();
+
+    // then
+    Assertions.assertNull(builder.getGatewayTarget());
+
+    Assertions.assertEquals("0.0.0.0:26500", builder.getGatewayAddress());
+  }
+
+  @Test
+  @DisplayName("should use gatewayTarget when gatewayAddress is not valid ip:port")
+  public void shouldUseGatewayTargetWhenGatewayAddressIsNotValidIpPort() {
+    // given
+    final ZeebeClientBuilderImpl builder = new ZeebeClientBuilderImpl();
+    final Properties properties = new Properties();
+    properties.putIfAbsent(ClientProperties.GATEWAY_ADDRESS, "gateway.zeebe.com:26500");
+
+    // use
+    builder.withProperties(properties);
+
+    // verify
+    Assertions.assertEquals("gateway.zeebe.com:26500", builder.getGatewayTarget());
+  }
+
+  @Test
+  @DisplayName("should use gatewayAddress to buildChannel when gatewayTarget is null")
+  public void shouldUseGatewayAddressToBuildChannelWhenGatewayTargetIsNull() {
+
+    // given
+    final ZeebeClientConfiguration zeebeClientConfiguration = mock(ZeebeClientConfiguration.class,
+        RETURNS_DEEP_STUBS);
+    when(zeebeClientConfiguration.getGatewayTarget()).thenReturn(null);
+    when(zeebeClientConfiguration.getKeepAlive().toMillis()).thenReturn(1L);
+    when(zeebeClientConfiguration.getInterceptors()).thenReturn(new ArrayList<>());
+    when(zeebeClientConfiguration.getGatewayAddress()).thenReturn("0.0.0.0:26500");
+
+    // use & verify
+    Assertions.assertDoesNotThrow(() -> {
+      client = new ZeebeClientImpl(zeebeClientConfiguration);
+    });
+
+    // verify
+    verify(zeebeClientConfiguration, times(1)).getGatewayAddress();
+
+  }
+
+  @Test
+  @DisplayName("should use gatewayTarget to buildChannel when gatewayTarget is null")
+  public void shouldUseGatewayTargetToBuildChannelWhenGatewayTargetIsNull() {
+
+    // given
+    final ZeebeClientConfiguration zeebeClientConfiguration = mock(ZeebeClientConfiguration.class,
+        RETURNS_DEEP_STUBS);
+    when(zeebeClientConfiguration.getGatewayTarget()).thenReturn("gateway.zeebe.com:26500");
+    when(zeebeClientConfiguration.getKeepAlive().toMillis()).thenReturn(1L);
+    when(zeebeClientConfiguration.getInterceptors()).thenReturn(new ArrayList<>());
+    when(zeebeClientConfiguration.getGatewayAddress()).thenReturn("0.0.0.0:26500");
+
+    // use & verify
+    Assertions.assertDoesNotThrow(() -> {
+      client = new ZeebeClientImpl(zeebeClientConfiguration);
+    });
+
+    // verify
+    verify(zeebeClientConfiguration, times(0)).getGatewayAddress();
+    verify(zeebeClientConfiguration, times(2)).getGatewayTarget();
+
+  }
+
+  @Test
+  public void shouldUseCustomNameResolverProvider() {
 
     // given
     final HighPriorityNameResolverProvider highPriorityNameResolverProvider =
@@ -743,22 +838,21 @@ public final class ZeebeClientTest extends ClientTest {
         .isEqualTo("demo");
 
     // verify the configured name resolver provider is used
-    client = new ZeebeClientBuilderImpl().gatewayAddress("dns:///0.0.0.0:26500").build();
-    Assertions.assertEquals("dns:///0.0.0.0:26500", client.getConfiguration().getGatewayAddress());
+    Assertions.assertDoesNotThrow(() -> {
+      new ZeebeClientBuilderImpl().gatewayTarget("dns:///gateway.zeebe.com:26500")
+          .build();
+    });
 
     // verify the configured name resolver provider is used
     Assertions.assertThrows(
         ClientException.class,
-        () -> new ZeebeClientBuilderImpl().gatewayAddress("demo://0.0.0.0:26500").build());
+        () -> new ZeebeClientBuilderImpl().gatewayTarget("demo://gateway.zeebe.com:26500")
+            .build());
 
     // verify the the high priority name resolver provider is used
     Assertions.assertThrows(
         ClientException.class,
-        () -> new ZeebeClientBuilderImpl().gatewayAddress("0.0.0.0:26500").build());
-
-    // deregister and verify
+        () -> new ZeebeClientBuilderImpl().gatewayTarget("gateway.zeebe.com:26500").build());
     NameResolverRegistry.getDefaultRegistry().deregister(highPriorityNameResolverProvider);
-    client = new ZeebeClientBuilderImpl().gatewayAddress("0.0.0.0:26500").build();
-    Assertions.assertEquals("0.0.0.0:26500", client.getConfiguration().getGatewayAddress());
   }
 }
