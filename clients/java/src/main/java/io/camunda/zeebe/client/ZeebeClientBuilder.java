@@ -58,17 +58,11 @@ public interface ZeebeClientBuilder {
    * @param gatewayTarget the host socket address of a gateway that the client can initially connect
    *     to. If this value is empty, the gatewayAddress will be used. The default value is empty.
    *     The purpose of this method is to extend gatewayAddress to support more connections.
-   *
-   *     <p></p>
-   *     Must be in a standard URI format, e.g. <code>dns:///gateway.zeebe.com:26500</code> or
-   *     <code>gateway.zeebe.com:26500</code>(by default use the highest priority NameResolverProvider schema)
-   *
-   *     <p></p>
-   *     The schema for a URI can be customized, as long as a corresponding NameResolver exists.
-   *
-   *     <p></p>
-   *     see {@link NameResolverProvider#newNameResolver(URI, Args)}, {@link NameResolver}
-   *
+   *     <p>Must be in a standard URI format, e.g. <code>dns:///gateway.zeebe.com:26500</code> or
+   *     <code>gateway.zeebe.com:26500</code>(by default use the highest priority
+   *     NameResolverProvider schema)
+   *     <p>The schema for a URI can be customized, as long as a corresponding NameResolver exists.
+   *     <p>see {@link NameResolverProvider#newNameResolver(URI, Args)}, {@link NameResolver}
    */
   ZeebeClientBuilder gatewayTarget(String gatewayTarget);
 

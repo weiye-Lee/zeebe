@@ -143,8 +143,8 @@ public final class ZeebeClientImpl implements ZeebeClient {
     return configureNettyChannel(config, channelBuilder).build();
   }
 
-  private static NettyChannelBuilder configureNettyChannel(ZeebeClientConfiguration config,
-      NettyChannelBuilder channelBuilder) {
+  private static NettyChannelBuilder configureNettyChannel(
+      ZeebeClientConfiguration config, NettyChannelBuilder channelBuilder) {
     configureConnectionSecurity(config, channelBuilder);
     channelBuilder.keepAliveTime(config.getKeepAlive().toMillis(), TimeUnit.MILLISECONDS);
     channelBuilder.userAgent("zeebe-client-java/" + VersionUtil.getVersion());
